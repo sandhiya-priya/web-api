@@ -1,0 +1,17 @@
+Three Types of API:
+
+1.web api (controoler because of mvc structure)
+2.service (service.svc)
+3.asmx
+
+
+1)Differences between Web Services and Web API
+2)What are the differences between WCF and ASMX web services?
+
+---------------------------------------------------------
+url for create a new  web api :  
+
+https://www.c-sharpcorner.com/article/create-simple-web-api-in-asp-net-mvc/#:~:text=This%20controller%20is%20created%20by,the%20%22Add%20Scaffold%22%20window.
+
+----------------------------------------------------
+
