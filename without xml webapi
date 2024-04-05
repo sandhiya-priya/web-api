@@ -1,0 +1,456 @@
+using AppBlock;
+using FormatFunctions;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Web.Http;
+
+
+namespace ABCAPI.Controllers
+{
+    public class ABCAPIController : ApiController
+    {
+        [HttpPost]
+        public resultbinddata Marketshare_price([FromBody] binddata passdata)
+        {
+
+
+            resultbinddata refe = new resultbinddata();
+            string storeresult = "";
+            string Useridhead = "", Usernamehead = "";
+
+            try
+            {
+
+                System.Net.Http.Headers.HttpRequestHeaders headers = this.Request.Headers;
+                if (headers.Contains("clientname"))
+                {
+                    Usernamehead = headers.GetValues("clientname").First();// header value we can see
+                }
+                if (headers.Contains("clientkey"))
+                {
+                    Useridhead = headers.GetValues("clientkey").First();
+                }
+
+                string sql = " select * from ABCApiheader where clientname='" + Usernamehead + "' and clientkey='" + Useridhead + "'";
+                DataSet dshead = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["common165"].ToString(), CommandType.Text, sql);
+                if (dshead != null && dshead.Tables[0].Rows.Count > 0)
+                {
+                    #region
+                    if (passdata.isin != "")
+                    {
+
+                        SqlParameter[] param = { new SqlParameter("@isin", passdata.isin),
+                                             };
+                        DataSet ds1 = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["common165"].ToString(), CommandType.StoredProcedure, "pricedetailsBSENSE", param);
+                        DataView dt4 = ds1.Tables[0].DefaultView;
+
+                        storeresult = DataTableToJSONWithJSONNet(dt4.ToTable(true, "isin", "bseprice", "nseprice", "Nsepercentage", "Bsepercentage", "Bsechange", "Nsechange", "B52High", "N52High", "B52LOW", "N52LOW", "BTMCAP", "NTMCAP"));
+
+
+                        // storeresult = DataTableToJSONWithJSONNet(ds1.Tables[0]);
+                        if (storeresult != "[]")
+                        {
+
+                            refe.Status = true;
+                            refe.Message = JsonConvert.SerializeObject("Sucessfully Updated");
+                            refe.Data = storeresult;
+                            return refe;
+                        }
+                        else
+                        {
+                            refe.Status = false;
+                            refe.Message = JsonConvert.SerializeObject(" No Data Available..!!");
+                            refe.Data = null;
+                            return refe;
+                        }
+                    }
+
+                    else
+                    {
+                        storeresult = JsonConvert.SerializeObject("ISIN Is Missing..!!");
+                        refe.Status = false;
+                        refe.Message = storeresult;
+                        refe.Data = "";
+                        return refe;
+
+
+                    }
+                    #endregion
+                }
+                else
+                {
+                    storeresult = JsonConvert.SerializeObject("Invalid clientname Name or clientkey");
+                    refe.Status = false;
+                    refe.Message = storeresult;
+                    refe.Data = "";
+                    return refe;
+                }
+            }
+            catch (Exception ex)
+            {
+
+                Console.WriteLine("Please try again later: " + ex);
+
+                storeresult = JsonConvert.SerializeObject(" No Data Available..!!");
+                refe.Status = false;
+                refe.Message = storeresult;
+                refe.Data = "";
+                return refe;
+
+
+
+            }
+        }
+
+        public resultbinddata Marketshare_chart([FromBody] chartbinddata passdata)
+        {
+            #region 2nd
+
+            resultbinddata refe = new resultbinddata();
+            string storeresult = "";
+            string Useridhead = "", Usernamehead = "";
+            try
+            {
+
+
+                System.Net.Http.Headers.HttpRequestHeaders headers = this.Request.Headers;
+                if (headers.Contains("clientname"))
+                {
+                    Usernamehead = headers.GetValues("clientname").First();// header value we can see
+                }
+                if (headers.Contains("clientkey"))
+                {
+                    Useridhead = headers.GetValues("clientkey").First();
+                }
+
+                string sql = " select * from ABCApiheader where clientname='" + Usernamehead + "' and clientkey='" + Useridhead + "'";
+                DataSet dshead = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["common165"].ToString(), CommandType.Text, sql);
+                if (dshead != null && dshead.Tables[0].Rows.Count > 0)
+                {
+                    #region
+                    if (passdata.isin != "" && passdata.period != "")
+                    {
+                        string cocode = "";
+                        DataSet ds = new DataSet();
+                        string SQL = "Select co_code from aliasmas where isin='" + passdata.isin + "'";
+                        ds = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["ClineOle"].ToString(), CommandType.Text, SQL);
+                        if (ds.Tables[0].Rows.Count > 0)
+                        {
+
+                            cocode = ds.Tables[0].Rows[0]["Co_Code"].ToString();
+
+
+                            string perioddate = null;
+                            string datef = passdata.period;
+                            if (passdata.period.ToLower().Contains("day") || (passdata.period.ToLower().Contains("week")) || (passdata.period.ToLower().Contains("month")) || (passdata.period.ToLower().Contains("year")))
+                            {
+                                if (passdata.period.ToLower().Contains("day"))
+                                {
+                                    // datef = datef.ToLower().Replace("day", "");
+                                    // perioddate = C_Format.M_FormatDate(DateTime.Now.AddDays(-(Convert.ToInt32(datef))).ToShortDateString(), "yyyy-MM-dd");
+                                    SqlParameter[] param1 = { new SqlParameter("@Co_Code", cocode),SqlHelper.MakeParam("@Mode","S"),SqlHelper.MakeParam("@Excg",passdata.exchange),
+
+                                             };
+                                    DataSet ds2 = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["Klsehist"].ToString(), CommandType.StoredProcedure, "cm_intradaystkprice", param1);
+
+                                    storeresult = DataTableToJSONWithJSONNet1(ds2.Tables[0]);
+
+
+                                    refe.Status = true;
+                                    refe.Message = JsonConvert.SerializeObject("Sucessfully Updated");
+                                    refe.Data = storeresult;
+                                    return refe;
+                                }
+                                if (passdata.period.ToLower().Contains("week"))
+                                {
+                                    datef = datef.ToLower().Replace("week", "");
+
+
+                                   // DateTime periodDate = DateTime.ParseExact(passdata.period, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+                                    // int weekNumber = GetIso8601WeekOfYear(periodDate);
+                                    //DateTime currentDate = DateTime.Now;
+                                    //int dayOfWeekAsInt = (int)currentDate.DayOfWeek;
+                                   // perioddate = DateTime;
+                                    perioddate = C_Format.M_FormatDate(DateTime.Now.AddDays(-(7 * (Convert.ToInt32(datef)))).ToShortDateString(), "yyyy-MM-dd");
+                                }
+                                if (passdata.period.ToLower().Contains("month"))
+                                {
+                                    datef = datef.ToLower().Replace("month", "");
+                                    perioddate = C_Format.M_FormatDate(DateTime.Now.AddMonths(-(Convert.ToInt32(datef))).ToShortDateString(), "yyyy-MM-dd");
+                                }
+                                if (passdata.period.ToLower().Contains("year"))
+                                {
+                                    //datef.Substring(0, datef.Length - 2);
+                                    datef = datef.ToLower().Replace("year", "");
+                                    perioddate = C_Format.M_FormatDate(DateTime.Now.AddYears(-(Convert.ToInt32(datef))).ToShortDateString(), "yyyy-MM-dd");
+                                }
+
+                                SqlParameter[] param = { new SqlParameter("@CoCode", cocode),SqlHelper.MakeParam("@Mode","S"),SqlHelper.MakeParam("@exchg",passdata.exchange),
+                        new SqlParameter("@EndDate", perioddate),
+                                             };
+                                DataSet ds1 = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["common165"].ToString(), CommandType.StoredProcedure, "Marketshare_charts", param);
+                                storeresult = DataTableToJSONWithJSONNet(ds1.Tables[0]);
+                                if (storeresult != "[]")
+                                {
+
+                                    refe.Status = true;
+                                    refe.Message = JsonConvert.SerializeObject("Sucessfully Updated");
+                                    refe.Data = storeresult;
+                                    return refe;
+                                }
+                                else
+                                {
+                                    refe.Status = false;
+                                    refe.Message = JsonConvert.SerializeObject(" No Data Available..!!");
+                                    refe.Data = null;
+                                    return refe;
+                                }
+                            }
+                            else
+                            {
+                                refe.Status = false;
+                                refe.Message = JsonConvert.SerializeObject(" Invalid Period..!!");
+                                refe.Data = null;
+                                return refe;
+                            }
+                        }
+                        else
+                        {
+                            storeresult = JsonConvert.SerializeObject("Invalid ISIN ..!!");
+                            refe.Status = false;
+                            refe.Message = storeresult;
+                            refe.Data = "";
+                            return refe;
+                        }
+
+                    }
+
+                    else
+                    {
+                        storeresult = JsonConvert.SerializeObject("ISIN or Period Is Missing..!!");
+                        refe.Status = false;
+                        refe.Message = storeresult;
+                        refe.Data = "";
+                        return refe;
+
+
+                    }
+
+                    #endregion
+                }
+                else
+                {
+                    storeresult = JsonConvert.SerializeObject("Invalid clientname Name or clientkey");
+                    refe.Status = false;
+                    refe.Message = storeresult;
+                    refe.Data = "";
+                    return refe;
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                Console.WriteLine("Please try again later: " + ex);
+
+                storeresult = JsonConvert.SerializeObject(" No Data Available..!!");
+                refe.Status = false;
+                refe.Message = storeresult;
+                refe.Data = "";
+                return refe;
+
+
+
+            }
+            #endregion
+        }
+
+        public resultbinddata Companyfinancial_performance([FromBody] cmpyperformance passdata)
+        {
+
+            #region finall
+            resultbinddata refe = new resultbinddata();
+            string storeresult = "";
+            string cocode = "";
+            string Useridhead = "", Usernamehead = "";
+            try
+            {
+                System.Net.Http.Headers.HttpRequestHeaders headers = this.Request.Headers;
+                if (headers.Contains("clientname"))
+                {
+                    Usernamehead = headers.GetValues("clientname").First();// header value we can see
+                }
+                if (headers.Contains("clientkey"))
+                {
+                    Useridhead = headers.GetValues("clientkey").First();
+                }
+                string sql = " select * from ABCApiheader where clientname='" + Usernamehead + "' and clientkey='" + Useridhead + "'";
+                DataSet dshead = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["common165"].ToString(), CommandType.Text, sql);
+                if (dshead != null && dshead.Tables[0].Rows.Count > 0)
+                {
+
+                    #region
+                    if (passdata.isin != "" && passdata.period != "" && passdata.performance != "")
+                    {
+                        DataSet ds = new DataSet();
+                        string SQL = "Select co_code from aliasmas where isin='" + passdata.isin + "'";
+                        ds = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["ClineOle"].ToString(), CommandType.Text, SQL);
+                        if (ds.Tables[0].Rows.Count > 0)
+                        {
+
+                            cocode = ds.Tables[0].Rows[0]["Co_Code"].ToString();
+                            if ((passdata.period.ToLower() == "quarterly" || passdata.period.ToLower() == "yearly") && (passdata.performance.ToLower() == "standalone" || passdata.performance.ToLower() == "consolidated"))
+                            {
+                                SqlParameter[] param = { new SqlParameter("@co_code", cocode),
+                        new SqlParameter("@period", passdata.period),
+                        new SqlParameter("@performance", passdata.performance),
+                                             };
+                                DataSet ds1 = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["common165"].ToString(), CommandType.StoredProcedure, "Companyfinancial_performance", param);
+                                //DataView dt4 = ds1.Tables[0].DefaultView;
+
+                                //storeresult = DataTableToJSONWithJSONNet(dt4.ToTable("", "", ""));
+
+                                storeresult = DataTableToJSONWithJSONNet(ds1.Tables[0]);
+
+                                if (storeresult != "[]")
+                                {
+                                    refe.Status = true;
+                                    refe.Message = JsonConvert.SerializeObject("Sucessfully Updated");
+                                    refe.Data = storeresult;
+                                    return refe;
+                                }
+                                else
+                                {
+                                    refe.Status = false;
+                                    refe.Message = JsonConvert.SerializeObject("No Data Available..!!");
+                                    refe.Data = null;
+                                    return refe;
+
+                                }
+                            }
+                            else
+                            {
+                                storeresult = JsonConvert.SerializeObject("Invalid Period or Performance..!!");
+                                refe.Status = false;
+                                refe.Message = storeresult;
+                                refe.Data = "";
+                                return refe;
+                            }
+                        }
+                        else
+                        {
+                            storeresult = JsonConvert.SerializeObject("Invalid ISIN..!!");
+                            refe.Status = false;
+                            refe.Message = storeresult;
+                            refe.Data = "";
+                            return refe;
+                        }
+
+                    }
+
+                    else
+                    {
+                        storeresult = JsonConvert.SerializeObject("ISIN or Period or Performance  Is Missing..!!");
+                        refe.Status = false;
+                        refe.Message = storeresult;
+                        refe.Data = "";
+                        return refe;
+
+
+                    }
+                    #endregion
+                }
+                else
+                {
+                    storeresult = JsonConvert.SerializeObject("Invalid clientname Name or clientkey");
+                    refe.Status = false;
+                    refe.Message = storeresult;
+                    refe.Data = "";
+                    return refe;
+                }
+            }
+            catch (Exception ex)
+            {
+
+                Console.WriteLine("Please try again later: " + ex);
+
+                storeresult = JsonConvert.SerializeObject(" No Data Available..!!");
+                refe.Status = false;
+                refe.Message = storeresult;
+                refe.Data = "";
+                return refe;
+
+
+
+            }
+            #endregion
+        }
+
+        public string DataTableToJSONWithJSONNet(DataTable table)
+        {
+            string JSONString = string.Empty;
+
+            JSONString = JsonConvert.SerializeObject(table);
+            return JSONString;
+        }
+        public string DataTableToJSONWithJSONNet1(DataTable table)
+        {
+            string JSONString = string.Empty;
+            table.Columns.Remove("Volume");
+            JSONString = JsonConvert.SerializeObject(table);
+            return JSONString;
+        }
+
+        public class resultbinddata
+        {
+            public Boolean Status { get; set; }
+            public string Message { get; set; }
+            public string Data { get; set; }
+
+        }
+
+        //public class inputparameter
+        //{
+        //    public List<binddata> parameter { get; set; }
+
+        //}
+        public class binddata
+        {
+            public string isin { get; set; }
+
+        }
+        public class cmpyperformance
+        {
+            public string isin { get; set; }
+            public string period { get; set; }
+            public string performance { get; set; }
+            // public List<particular> parameter { get; set; }
+
+        }
+
+        public class particular
+        {
+            public string Revenue { get; set; }
+            public string NetProfit { get; set; }
+            public string NetWorth { get; set; }
+
+        }
+        public class chartbinddata
+        {
+            public string isin { get; set; }
+            public string period { get; set; }
+            public string exchange { get; set; }
+
+        }
+
+    }
+}
