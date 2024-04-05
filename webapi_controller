@@ -1,0 +1,308 @@
+using AppBlock;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Web.Http;
+
+namespace CholaMarket_feed.Controllers
+{
+    public class cholamarketController : ApiController
+    {
+        public class isindata
+        {
+            public string[] isin { get; set; }
+
+        }
+        public class resultdata
+        {
+            public Boolean status { get; set; }
+            public string Result { get; set; }
+            public string Data { get; set; }
+        }
+        [HttpPost]
+        public resultdata GetISINDetailss([FromBody] isindata Inputparameter)
+        {
+            resultdata obj = new resultdata();
+            DataTable dt = new DataTable();
+            string result = "";
+
+            string[] d = Inputparameter.isin;
+
+
+            dt.Columns.Add("isin");
+            for (int i = 0; i < d.Length; i++)
+            {
+                DataRow dr = dt.NewRow();
+                dr["isin"] = d[i].ToString();
+                dt.Rows.Add(dr);
+            }
+            #region
+
+            try
+            {
+
+                if (dt != null && dt.Rows.Count > 0)
+                {
+                    DataSet ds = new DataSet();
+
+                    ds.Tables.Add(dt);
+                    string convetXml = ds.GetXml().Replace("\r\n", "").Replace(" ", "");
+
+                    SqlParameter[] Params = { new SqlParameter("@PortfolioMasterXML", convetXml) };
+
+                    DataSet ds1 = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["common165"].ToString(), CommandType.StoredProcedure, "PFStockLivePrices_CholaAPI", Params);
+
+                    result = DataTableToJSONWithJSONNet(ds1.Tables[0]);
+
+
+
+                    obj.status = true;
+                    obj.Result = JsonConvert.SerializeObject("Sucessfully Updated");
+                    obj.Data = result;
+
+                    return obj;
+
+                }
+                else
+                {
+                    result = JsonConvert.SerializeObject(" No Data Available..!!");
+                    obj.status = false;
+                    obj.Result = result;
+                    obj.Data = "";
+                    return obj;
+
+
+                }
+
+            }
+
+            catch (Exception ex)
+            {
+
+                Console.WriteLine("Please try again later: " + ex);
+
+                result = JsonConvert.SerializeObject(" No Data Available..!!");
+                obj.status = false;
+                obj.Result = result;
+                obj.Data = "";
+                return obj;
+
+
+
+            }
+            #endregion
+
+        }
+
+
+        public class resultbinddata
+        {
+            public Boolean Status1 { get; set; }
+            public string Result1 { get; set; }
+
+            public string Data1 { get; set; }
+        }
+        public class inputparameter
+        {
+            public List<binddata> parameter { get; set; }
+
+        }
+        public class binddata
+        {
+
+            public string Symbol { get; set; }
+            public string ExpDate { get; set; }
+            public string OptType { get; set; }
+            public string StrikePrice { get; set; }
+        }
+
+        [HttpPost]
+        public resultbinddata EODPricesDetails([FromBody] inputparameter passdata)
+        {
+
+
+            resultbinddata refe = new resultbinddata();
+            string storeresult = "";
+            string s = JsonConvert.SerializeObject(passdata.parameter);
+            //string s = JsonConvert.SerializeObject(passdata.Data1);
+            DataTable dt = (DataTable)JsonConvert.DeserializeObject(s, (typeof(DataTable)));
+            try
+            {
+                if (dt != null && dt.Rows.Count > 0)
+                {
+                    DataSet ds = new DataSet();
+                    ds.Tables.Add(dt);
+
+                    string data = ds.GetXml().Replace("\r\n", "");
+                    SqlParameter[] param = { new SqlParameter("@PortfolioMasterXML", data),
+                                             };
+                    DataSet ds1 = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["common165"].ToString(), CommandType.StoredProcedure, "PFFAOLivePrices_cholaAPI", param);
+                    storeresult = DataTableToJSONWithJSONNet(ds1.Tables[0]);
+
+
+                    refe.Status1 = true;
+                    refe.Result1 = JsonConvert.SerializeObject("Sucessfully Updated");
+                    refe.Data1 = storeresult;
+                    return refe;
+
+                }
+
+                else
+                {
+                    storeresult = JsonConvert.SerializeObject(" No Data Available..!!");
+                    refe.Status1 = false;
+                    refe.Result1 = storeresult;
+                    refe.Data1 = "";
+                    return refe;
+
+
+                }
+            }
+            catch (Exception ex)
+            {
+
+                Console.WriteLine("Please try again later: " + ex);
+
+                storeresult = JsonConvert.SerializeObject(" No Data Available..!!");
+                refe.Status1 = false;
+                refe.Result1 = storeresult;
+                refe.Data1 = "";
+                return refe;
+
+
+
+            }
+        }
+
+        public string DataTableToJSONWithJSONNet(DataTable table)
+        {
+            string JSONString = string.Empty;
+            JSONString = JsonConvert.SerializeObject(table);
+            return JSONString;
+        }
+
+        [HttpPost]
+        public EQFO Equity_DerivativesPricesDetails([FromBody] inputparameterforEQFO passdata)
+        {
+            EQFO refe = new EQFO();
+            string storeresult = "";
+            string s = JsonConvert.SerializeObject(passdata.parameter);
+            DataTable dt = (DataTable)JsonConvert.DeserializeObject(s, (typeof(DataTable)));
+
+            string Useridhead = "", Usernamehead = "";
+            #region 
+            //HttpRequestMessageProperty request = OperationContext.Current.IncomingMessageProperties["httpRequest"] as HttpRequestMessageProperty;
+            //WebHeaderCollection headers = request.Headers;
+            //foreach (string headerName in headers.AllKeys) //key 
+            //{
+            //    if (headerName == "Username")
+            //        Usernamehead = headers[headerName].ToString();
+
+            //    if (headerName == "Userid")
+            //        Useridhead = headers[headerName].ToString();
+            //}
+            #endregion
+            System.Net.Http.Headers.HttpRequestHeaders headers = this.Request.Headers;
+            if (headers.Contains("clientname"))
+            {
+                Usernamehead = headers.GetValues("clientname").First();// header value we can see
+            }
+            if (headers.Contains("clientkey"))
+            {
+                Useridhead = headers.GetValues("clientkey").First();
+            }
+
+      
+            try
+            {
+                string sql = " select * from Apiheader where clientname='" + Usernamehead + "' and clientkey='" + Useridhead + "'";
+                DataSet dshead = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["Choladbs"].ToString(), CommandType.Text, sql);
+                if (dshead != null && dshead.Tables[0].Rows.Count > 0)
+                {
+                #region
+                if (dt != null && dt.Rows.Count > 0)
+                    {
+                        DataSet ds = new DataSet();
+                        ds.Tables.Add(dt);
+
+                        string data = ds.GetXml().Replace("\r\n", "");
+                       
+                        SqlParameter[] param = { new SqlParameter("@PortfolioMasterXML", data),
+                                             };
+                        DataSet ds1 = SqlHelper.ExecuteDataset(ConfigurationManager.ConnectionStrings["common165"].ToString(), CommandType.StoredProcedure, "PFStockLiveEQ_FOPrices_CholaAPI", param);
+                        storeresult = DataTableToJSONWithJSONNet(ds1.Tables[0]);
+
+
+                        refe.Status = true;
+                        refe.Message = JsonConvert.SerializeObject("Sucessfully Updated");
+                        refe.Data = storeresult;
+                        return refe;
+
+                    }
+
+                    else
+                    {
+                        storeresult = JsonConvert.SerializeObject(" No Data Available..!!");
+                        refe.Status = false;
+                        refe.Message = storeresult;
+                        refe.Data = "";
+                        return refe;
+                    }
+                #endregion
+                }
+                else
+                {
+                    storeresult = JsonConvert.SerializeObject("Invalid clientname Name or clientkey");
+                    refe.Status = false;
+                    refe.Message = storeresult;
+                    refe.Data = "";
+                    return refe;
+                }
+            }
+            catch (Exception ex)
+            {
+
+                Console.WriteLine("Please try again later: " + ex);
+
+                storeresult = JsonConvert.SerializeObject(" No Data Available..!!");
+                refe.Status = false;
+                refe.Message = storeresult;
+                refe.Data = "";
+                return refe;
+
+
+
+            }
+        }
+
+        public class EQFO
+        {
+            public Boolean Status { get; set; }
+            public string Message { get; set; }
+
+            public string Data { get; set; }
+        }
+
+        public class inputparameterforEQFO
+        {
+            public List<binddata_EQFO> parameter { get; set; }
+
+        }
+        public class binddata_EQFO
+        {
+            public string Segment { get; set; }
+            public string Symbol { get; set; }
+            public string ExpDate { get; set; }
+            public string OptType { get; set; }
+            public string StrikePrice { get; set; }
+        }
+
+ }
+}
